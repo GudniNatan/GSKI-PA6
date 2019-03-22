@@ -57,6 +57,7 @@ def readkey_unix():
         fcntl.fcntl(fd, fcntl.F_SETFL, oldflags)
     return KEYMAP.get(c, c)
 
+
 if __name__ == "__main__":  # demo
     key = readkey()
     print(key)

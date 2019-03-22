@@ -140,6 +140,24 @@ class Map(object):
     def __contains__(self, key):
         return self.contains(key)
 
+    def search(self, lo, hi=None):
+        if hi is None:
+            hi = lo
+        yield from self._search_recur(lo, hi, self.root)
+
+    def _search_recur(self, lo, hi, node):
+        """Search for matching data within the specified range."""
+        if node is None:
+            return
+        if lo <= node.key <= hi:
+            yield from self._search_recur(lo, hi, node.left)
+            yield node.data
+            yield from self._search_recur(lo, hi, node.right)
+        elif lo > node:
+            yield from self._search_recur(lo, hi, node.right)
+        else:
+            yield from self._search_recur(lo, hi, node.left)
+
 
 if __name__ == "__main__":
     m = Map()

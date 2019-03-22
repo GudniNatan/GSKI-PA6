@@ -1,15 +1,12 @@
 from dataclasses import dataclass, field, asdict
 
 
-@dataclass(order=True)
+@dataclass(order=True, frozen=True)
 class Member(object):
     name: str
     phone: str
     email: str
-    year_of_birth: int = field(default_factory=int)
-
-    def __post_init__(self):
-        self.year_of_birth = int(self.year_of_birth)
+    year_of_birth: int
 
     def get_dict(self):
         return asdict(self)

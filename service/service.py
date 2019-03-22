@@ -1,13 +1,15 @@
-from ui.car_rental_ui import CarRentalUI
-from my_dataclasses import Member
-
-# sample
+from typing import Callable, Dict
+from service import MemberService, SportService
 
 
-def callback(*args):
-    print("submitted")
+class Service(object):
+    def __init__(self):
+        self.__undo_stack = list()
+        self.__menu_stack = list()
 
+    def undo(self):
+        function, kwargs = self.__undo_stack.pop()
+        function(**kwargs)
 
-ui = CarRentalUI()
-me = Member("Guðni", "1234564", "gudni@fakemail.com")
-ui.get_edit_menu(me, "Member", "Breyttu þessum meðlim", callback)
+    def add_undo_function(self, function: Callable, kwargs: Dict):
+        self.__undo_stack.append((command, kwargs))
