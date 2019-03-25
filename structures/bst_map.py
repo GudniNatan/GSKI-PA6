@@ -1,10 +1,6 @@
 from functools import total_ordering
 
 
-class NotFoundException(Exception):
-    pass
-
-
 class ItemExistsException(Exception):
     pass
 
@@ -119,7 +115,7 @@ class Map(object):
 
     def __findNode(self, node, key):
         if node is None:
-            raise NotFoundException()
+            raise KeyError()
         elif key < node:
             return self.__findNode(node.left, key)
         elif node < key:
@@ -157,6 +153,10 @@ class Map(object):
             yield from self._search_recur(lo, hi, node.right)
         else:
             yield from self._search_recur(lo, hi, node.left)
+
+    def ordered(self):
+        for node in self.__inorder():
+            yield node.value
 
 
 if __name__ == "__main__":

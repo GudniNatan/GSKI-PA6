@@ -25,6 +25,6 @@ class Menu(object):
         while callback is None:
             try:
                 val, callback = self.__options[int(chr(key)) - 1]
-            except IndexError:
+            except (IndexError, ValueError):
                 key = readkey()
         return callback

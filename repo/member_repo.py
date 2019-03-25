@@ -2,10 +2,11 @@ import json
 import shelve
 from repo.repo import Repo
 from my_dataclasses import Member
+from structures.meta_tree import MetaTree
 
 
 class MemberRepo(Repo):
-    __members = set()
+    __members = MetaTree(Member)
 
     def _get_collection(self):
         return self.__members
@@ -32,7 +33,7 @@ class MemberRepo(Repo):
              email: str = None, year_of_birth: int = None):
         arguments = {"name": name, "phone": phone, "email": email,
                      "year_of_birth": year_of_birth}
-        return self.search(Member, arguments, self.__members)
+        return self.__members.multi_field_search(arguments)
 
     def __del__(self):
         self.save()

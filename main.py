@@ -1,4 +1,3 @@
-from termcolor import colored
 from my_dataclasses import Member
 from structures.stack import Stack
 from ui import Menu
@@ -22,8 +21,8 @@ me = Member("Guðni", "1234564", "gudni@fakemail.com", 1998)
 # callback, result = menu.get_input()
 # me2 = Member(**result)
 # print(me2)
-menu = Menu("test", {"option 1": callback1, "option 2": callback2})
-print(menu.get_input())
+# menu = Menu("test", {"option 1": callback1, "option 2": callback2})
+# print(menu.get_input())
 a = MemberRepo()
 # a.add(Member("Guðni", "1234564", "gudni@fakemail.com", 1998))
 # a.add(Member("Guðni", "1234564", "gudni@fakemail.com", 1998))
@@ -32,4 +31,7 @@ a = MemberRepo()
 # a.add(Member("Guðni", "1234564", "gudni@fakedfgmail.com", 1998))
 print(a.find(name="Guðni"))
 for item in a:
-    print()
+    print(item)
+
+print(a.order_by("phone"))
+print(a.order_by("email"))

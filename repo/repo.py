@@ -28,6 +28,9 @@ class Repo(object):
                     subset.remove(item)
         return subset
 
+    def order_by(self, field):
+        return self._get_collection().order_by(field)
+
     def __iter__(self):
         for item in self._get_collection():
             yield item
