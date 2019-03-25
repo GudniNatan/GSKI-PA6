@@ -2,12 +2,19 @@ from dataclasses import fields
 
 
 class Repo(object):
-    pass
+    def __init__(self):
+        try:
+            self.load()
+        except KeyError:
+            pass
 
     def save():
         raise NotImplementedError()
 
-    def read():
+    def load():
+        raise NotImplementedError()
+
+    def _get_collection(self):
         raise NotImplementedError()
 
     def search(self, dataclass, arguments, search_set):
@@ -20,3 +27,7 @@ class Repo(object):
                 if arg and prop != arg:
                     subset.remove(item)
         return subset
+
+    def __iter__(self):
+        for item in self._get_collection():
+            yield item
