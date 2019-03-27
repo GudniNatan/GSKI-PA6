@@ -1,7 +1,10 @@
-from my_dataclasses import Member
-from structures.stack import Stack
+from my_dataclasses import Member, Sport, Plays
 from ui import Menu
 from repo.member_repo import MemberRepo
+from repo.sport_repo import SportRepo
+from repo.plays_repo import PlaysRepo
+from ui import UI
+from service.service import Service
 # sample
 
 
@@ -12,26 +15,47 @@ def callback1(*args):
 def callback2(*args):
     print(2)
 
+def test():
+    # command_stack = Stack()
+    # ui = CarRentalUI(callback, callback)
+    me = Member("Guðni", "1234564", "gudni@fakemail.com", 1998)
+    # print(me.get_dict())
+    a = MemberRepo()
+    a.clear()
+    mem_a = Member("GuðniA", "1234564", "gudni@fakemail.com", 1998)
+    mem_b = Member("GuðniB", "1234564", "gudni@fakemail.com", 1998)
+    mem_c = Member("GuðniC", "weasd", "gudni@fakemail.com", 1998)
+    mem_d = Member("GuðniD", "ewr", "gudni@ggdfg.com", 1998)
+    mem_e = Member("GuðniE", "1234564", "gudni@fakedfgmail.com", 1998)
+    a.add(mem_a, mem_b, mem_c, mem_d, mem_e)
 
-# command_stack = Stack()
-# ui = CarRentalUI(callback, callback)
-me = Member("Guðni", "1234564", "gudni@fakemail.com", 1998)
-# print(me.get_dict())
-# menu = ui.get_edit_menu(me, "Member", "Breyttu þessum meðlim", callback)
-# callback, result = menu.get_input()
-# me2 = Member(**result)
-# print(me2)
-# menu = Menu("test", {"option 1": callback1, "option 2": callback2})
-# print(menu.get_input())
-a = MemberRepo()
-# a.add(Member("Guðni", "1234564", "gudni@fakemail.com", 1998))
-# a.add(Member("Guðni", "1234564", "gudni@fakemail.com", 1998))
-# a.add(Member("Guðni", "weasd", "gudni@fakemail.com", 1998))
-# a.add(Member("Guðni", "ewr", "gudni@ggdfg.com", 1998))
-# a.add(Member("Guðni", "1234564", "gudni@fakedfgmail.com", 1998))
-print(a.find(name="Guðni"))
-for item in a:
-    print(item)
+    b = SportRepo()
+    b.clear()
+    sport_a = Sport("Baseball")
+    sport_b = Sport("Tennis")
+    b.add(sport_a, sport_b)
 
-print(a.order_by("phone"))
-print(a.order_by("email"))
+    c = PlaysRepo(a, b)
+    c.clear()
+    plays_a = Plays(mem_a, sport_a)
+    plays_b = Plays(mem_d, sport_a)
+    plays_c = Plays(mem_a, sport_b)
+    plays_d = Plays(mem_e, sport_a)
+    c.add(plays_a, plays_b, plays_c, plays_d)
+
+    a.remove(mem_a)
+    for play in c:
+        print(play)
+
+    # my_ui = UI()
+    # item = my_ui.choose(a.order_by("phone"))
+    # my_ui.view_info(item)
+    # print(item)
+    # print()
+    # parameters = my_ui.search(Member)
+    # item = my_ui.search_result_choice(a.multi_field_search(parameters))
+    # print(item)
+
+if __name__ == "__main__":
+    service = Service()
+    service.start()

@@ -1,39 +1,15 @@
-import json
-import shelve
-from repo.repo import Repo
+from repo.repo import Repo, RelationError
 from my_dataclasses import Member
-from structures.meta_tree import MetaTree
 
 
 class MemberRepo(Repo):
-    __members = MetaTree(Member)
+    def __init__(self, plays_repo=None):
+        self.plays_repo = plays_repo
+        return super().__init__(Member)
 
-    def _get_collection(self):
-        return self.__members
-
-    def save(self):
-        with shelve.open('data/data') as db:
-            db['members'] = self.__members
-
-    def load(self):
-        with shelve.open('data/data') as db:
-            self.__members = db['members']
-
-    def add(self, member: Member):
-        self.__members.add(member)
-
-    def remove(self, member: Member):
-        self.__members.remove(member)
-
-    def update(self, old_member: Member, new_member: Member):
-        self.remove(old_member)
-        self.add(new_member)
-
-    def find(self, name: str = None, phone: str = None,
-             email: str = None, year_of_birth: int = None):
-        arguments = {"name": name, "phone": phone, "email": email,
-                     "year_of_birth": year_of_birth}
-        return self.__members.multi_field_search(arguments)
-
-    def __del__(self):
-        self.save()
+    def remove(self, instance):
+        """Remove a member, and all associations of that member."""
+        results = self.plays_repo.search("member", instance)
+        for item in list(results):
+            self.plays_repo.remove(item)
+        super().remove(instance)
