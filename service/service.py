@@ -20,7 +20,6 @@ class Service(object):
         options = {
             "Members": self.member_menu,
             "Sports": self.sport_menu,
-            "Undo last operation": self.undo,
             "Quit": False
         }
         menu = Menu("Main menu", options)
@@ -31,9 +30,9 @@ class Service(object):
     def member_menu(self):
         self.__menu_stack.append((self.member_menu, []))
         options = {
+            "See all members": self.all_members,
             "Search members": self.member_search,
             "Add new member": self.add_member,
-            "Undo last operation": self.undo,
             "Back": self.back
         }
         menu = Menu("Member menu", options)
@@ -41,11 +40,18 @@ class Service(object):
         function()
 
     def member_search(self):
-        self.__menu_stack.append((self.member_search, []))
         parameters = self.ui.search(Member)
         if not any(parameters.values()):
             self.back()
         results = self.member_repo.multi_field_search(parameters)
+        if results:
+            member = self.ui.search_result_choice(results)
+            self.selected_member(member)
+        else:
+            self.back()
+
+    def all_members(self):
+        results = self.member_repo.get_all()
         if results:
             member = self.ui.search_result_choice(results)
             self.selected_member(member)
@@ -60,7 +66,6 @@ class Service(object):
             "Delete this member": (self.delete_member, [member]),
             "See sports this member is member is registered in":
             (self.member_relation, [member]),
-            "Undo last operation": (self.undo, []),
             "Back": (self.back, [])
         }
         menu = Menu(message, options)

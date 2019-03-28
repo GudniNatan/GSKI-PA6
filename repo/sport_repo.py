@@ -11,4 +11,4 @@ class SportRepo(Repo):
         """Remove a member, and all associations of that member."""
         for item in self.plays_repo.search("sport", instance):
             self.plays_repo.remove(item)
-        super().remove(instance)
+        return super().remove(instance)

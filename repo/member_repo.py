@@ -12,4 +12,4 @@ class MemberRepo(Repo):
         results = self.plays_repo.search("member", instance)
         for item in list(results):
             self.plays_repo.remove(item)
-        super().remove(instance)
+        return super().remove(instance)

@@ -15,4 +15,4 @@ class PlaysRepo(Repo):
             raise RelationError("Member does not exist")
         if instance.sport not in self.sport_repo:
             raise RelationError("Sport does not exist")
-        super().add(instance, *args)
+        return super().add(instance, *args)

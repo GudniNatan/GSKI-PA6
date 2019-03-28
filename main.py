@@ -15,6 +15,7 @@ def callback1(*args):
 def callback2(*args):
     print(2)
 
+
 def test():
     # command_stack = Stack()
     # ui = CarRentalUI(callback, callback)
@@ -27,7 +28,8 @@ def test():
     mem_c = Member("GuðniC", "weasd", "gudni@fakemail.com", 1998)
     mem_d = Member("GuðniD", "ewr", "gudni@ggdfg.com", 1998)
     mem_e = Member("GuðniE", "1234564", "gudni@fakedfgmail.com", 1998)
-    a.add(mem_a, mem_b, mem_c, mem_d, mem_e)
+    result = a.add(mem_a, mem_b, mem_c, mem_d, mem_e)
+    UI().operation_result(result, callback1, callback2)
 
     b = SportRepo()
     b.clear()
@@ -43,9 +45,10 @@ def test():
     plays_d = Plays(mem_e, sport_a)
     c.add(plays_a, plays_b, plays_c, plays_d)
 
-    a.remove(mem_a)
+    # a.remove(mem_a)
     for play in c:
         print(play)
+    a.save()
 
     # my_ui = UI()
     # item = my_ui.choose(a.order_by("phone"))
@@ -56,6 +59,8 @@ def test():
     # item = my_ui.search_result_choice(a.multi_field_search(parameters))
     # print(item)
 
+
 if __name__ == "__main__":
+    test()
     service = Service()
     service.start()

@@ -1,10 +1,17 @@
 import shelve
 from dataclasses import asdict, fields
 from sortedcontainers import SortedDict, SortedSet
+from collections import deque
+from math import inf
 
 
 class RelationError(Exception):
     """Should be raised when unable to link relational attributes."""
+    pass
+
+
+class RepoFullError(Exception):
+    """Should be raised when repo is full."""
     pass
 
 
@@ -22,7 +29,10 @@ class Repo(object):
     The Repo expects the dataclasses it holds to be hashable.
     """
 
-    def __init__(self, dataclass):
+    def __init__(self, dataclass, max_items=-1):
+        self.max_items = inf if max_items < 0 else max_items
+        self.size = 0
+        self.instance_queue = deque()
         self.dataclass = dataclass
         self.dicts = {field.name: SortedDict() for field in fields(dataclass)}
         try:
@@ -32,39 +42,57 @@ class Repo(object):
 
     def save(self):
         with shelve.open('data/data') as db:
-            db[self.dataclass.__name__] = self.dicts
+            db[self.dataclass.__name__] = self
 
     def load(self):
+        return
         with shelve.open('data/data') as db:
-            self.dicts = db[self.dataclass.__name__]
+            self.dicts = db[self.dataclass.__name__].dicts
+            self.max_items = db[self.dataclass.__name__].max_items
+            self.size = db[self.dataclass.__name__].size
+            self.instance_queue = db[self.dataclass.__name__].instance_queue
 
     def add(self, instance, *args):
         """Add an instance of the dataclass to the Repo."""
+        if instance not in self:
+            if self.size > self.max_items:
+                raise RepoFullError()
+            self.size += 1
+            message = f"Added {instance} succesfully to the repo\n"
+        else:
+            message = f"{instance} already in the repo."
         for field, sorted_dict in self.dicts.items():
+            field_val = instance.__getattribute__(field)
             try:
-                field_val = instance.__getattribute__(field)
                 sorted_dict[field_val].add(instance)
             except KeyError:
                 sorted_dict[field_val] = SortedSet((instance,))
         if args:
-            self.add(*args)
+            return message + self.add(*args)
+        return message
 
-    def _rem(self, instance):
+    def _rem(self, instance, *args):
         for field, sorted_dict in self.dicts.items():
             field_val = instance.__getattribute__(field)
             matching_set = sorted_dict[field_val]
             matching_set.remove(instance)
             if not matching_set:
                 sorted_dict.pop(field_val)
+        self.size -= 1
+        message = f"Removed {instance} succesfully to the repo\n"
+        if args:
+            self._rem(*args)
 
-    def remove(self, instance):
+    def remove(self, instance, *args):
         """Remove an instance of the dataclass from the Repo."""
-        self._rem(instance)
+        message = self._rem(instance, *args)
+        return message + self._queue_add()  # add from queue if not empty
 
     def update(self, old_instance, new_instance):
         """Update an old instance of the dataclass with a new one."""
         self._rem(old_instance)
         self.add(new_instance)
+        return f"Updated {new_instance}!"
 
     def contains(self, instance):
         """Get if the instance of the dataclass is in this Repo."""
@@ -114,6 +142,25 @@ class Repo(object):
         class_fields = fields(self.dataclass)
         self.dicts = {field.name: SortedDict() for field in class_fields}
 
+    def enqueue(self, instance):
+        """Add an instance to the repo queue.
+
+        The instance will be added to the repo itself as soon as space is
+        available.
+        """
+        self.instance_queue.put(instance)
+        self._queue_add()
+
+    def _queue_add(self):
+        """If the queue is not empty, and the repo not full, add queue top."""
+        message = ""
+        if self.instance_queue and self.size < self.max_items:
+            instance = self.instance_queue.get()
+            self.add(instance)
+            reponame = type(self).__name__
+            message = f"Added {instance} from the queue to the {reponame}"
+        return message
+
     def __iter__(self):
         for ordered_dict in self.dicts.values():
             for keyset in ordered_dict.values():
@@ -129,7 +176,14 @@ class Repo(object):
             return instance in self.search(field, field_val)
 
     def __del__(self):
+        """Save the repo on deletion/quit."""
         self.save()
 
     def get_related(self, instance, relationRepo):
-        return relationRepo.search(self.dataclass.__name__, instance)
+        """Get set of related instances of instance in relationRepo."""
+        other = None
+        for field in fields(relationRepo.dataclass):
+            if field != self.dataclass.__name__:
+                other = field
+        results = relationRepo.search(self.dataclass.__name__, instance)
+        return {result[other] for result in results}
