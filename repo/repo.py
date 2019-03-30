@@ -42,15 +42,23 @@ class Repo(object):
 
     def save(self):
         with shelve.open('data/data') as db:
-            db[self.dataclass.__name__] = self
+            db[self.dataclass.__name__] = {
+                "dicts": self.dicts,
+                "max_items": self.max_items,
+                "size": self.size,
+                "instance_queue": self.instance_queue
+            }
 
     def load(self):
-        return
-        with shelve.open('data/data') as db:
-            self.dicts = db[self.dataclass.__name__].dicts
-            self.max_items = db[self.dataclass.__name__].max_items
-            self.size = db[self.dataclass.__name__].size
-            self.instance_queue = db[self.dataclass.__name__].instance_queue
+        try:
+            with shelve.open('data/data') as db:
+                class_rep = db[self.dataclass.__name__]
+                self.dicts = class_rep["dicts"]
+                self.max_items = class_rep["max_items"]
+                self.size = class_rep["size"]
+                self.instance_queue = class_rep["instance_queue"]
+        except (KeyError, TypeError):
+            pass
 
     def add(self, instance, *args):
         """Add an instance of the dataclass to the Repo."""
@@ -179,7 +187,7 @@ class Repo(object):
         """Save the repo on deletion/quit."""
         self.save()
 
-    def get_related(self, instance, relationRepo):
+    def get_related(self, instance: "dataclass", relationRepo: "Repo"):
         """Get set of related instances of instance in relationRepo."""
         other = None
         for field in fields(relationRepo.dataclass):
@@ -187,3 +195,4 @@ class Repo(object):
                 other = field
         results = relationRepo.search(self.dataclass.__name__, instance)
         return {result[other] for result in results}
+

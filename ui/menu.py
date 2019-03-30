@@ -4,18 +4,23 @@ from typing import Dict, Callable
 
 
 class Menu(object):
+    global_message = ""
     __MAX_OPTIONS = 8
 
     def __init__(self, message: str, options: Dict[str, Callable] = None):
         self.__message = message
-        self.__options = list() if options is None else list(options.items())
+        if options is None:
+            options = list()
+        elif type(options) == dict:
+            options = list(options.items())
+        self.__options = options
         self.__page = 0
 
     def __str__(self):
         start = self.__page * self.__MAX_OPTIONS
         end = (self.__page + 1) * self.__MAX_OPTIONS
         pagecount = len(self.__options) // self.__MAX_OPTIONS
-        string = self.__message + "\n"
+        string = self.global_message + self.__message + "\n"
         string += "\n".join((f"[{i + 1}]: {key}" for i, (key, value)
                              in enumerate(self.__options[start:end])))
         if pagecount > 0:

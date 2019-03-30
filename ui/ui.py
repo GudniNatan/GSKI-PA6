@@ -76,9 +76,14 @@ class UI(object):
         print()
         return parameters
 
-    def search_result_choice(self, results):
+    def search_result_choice(self, results, next, back):
         """Get user choice from search results."""
-        return self.choose(results, "Search results:")
+        options = [("Back", back)] + [(str(item), item) for item in results]
+        menu = Menu("Search results:", options)
+        string, item = menu.get_input()
+        if string == "Back":
+            return None, item
+        return item, next
 
     def operation_result(self, result_message, undo_op, continue_op):
         result_menu = Menu("Operation result:\n" + result_message,
