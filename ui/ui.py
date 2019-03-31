@@ -38,8 +38,8 @@ class UI(object):
         print("Updated member:", new_member, "\n")
         return new_member
 
-    def new_sport(self):
-        print("Create new member:")
+    def new_sport(self, message="Create new sport:"):
+        print(message)
         name = input("Name: ")
         new_sport = Sport(name)
         print("New sport:", new_sport, "\n")
@@ -51,7 +51,6 @@ class UI(object):
         message = "Choose an item:\n" if message is None else message
         menu = Menu(message, options)
         item_str, item = menu.get_input()
-        print()
         return item
 
     def view_info(self, dataclass_instance):
@@ -93,3 +92,4 @@ class UI(object):
                            {"Undo": undo_op, "Continue": continue_op})
         key, operation = result_menu.get_input()
         return operation
+        

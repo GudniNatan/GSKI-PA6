@@ -4,8 +4,9 @@ from collections import OrderedDict
 
 
 class MemberRepo(Repo):
-    def __init__(self, plays_repo=None):
+    def __init__(self, plays_repo=None, group_member_repo=None):
         self.plays_repo = plays_repo
+        self.group_member_repo = group_member_repo
         return super().__init__(Member)
 
     def remove(self, instance):

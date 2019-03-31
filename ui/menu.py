@@ -8,7 +8,7 @@ class Menu(object):
     __MAX_OPTIONS = 8
 
     def __init__(self, message: str, options: Dict[str, Callable] = None):
-        self.__message = self.global_message + message
+        self.__message = message
         if options is None:
             options = list()
         elif type(options) == dict:
@@ -19,14 +19,13 @@ class Menu(object):
     def __str__(self):
         start = self.__page * self.__MAX_OPTIONS
         end = (self.__page + 1) * self.__MAX_OPTIONS
-        pagecount = (len(self.__options) - 1) // self.__MAX_OPTIONS
-        string = self.__message + "\n"
+        string = self.global_message + self.__message + "\n"
         string += "\n".join((f"[{i + 1}]: {key}" for i, (key, value)
                              in enumerate(self.__options[start:end])))
-        if pagecount > 0:
-            string += "\n" + "[9] Prev page"
-            string += "\n" + "[0] Next page"
-            string += f"\nPage {self.__page} of {pagecount}"
+        if self.pagecount > 1:
+            string += "\n" + "[9]: Prev page"
+            string += "\n" + "[0]: Next page"
+            string += f"\nPage {self.__page + 1} of {self.pagecount}"
 
         return string
 
@@ -34,7 +33,6 @@ class Menu(object):
         os.system("cls" if os.name == "nt" else "clear")
 
     def get_input(self) -> Callable:
-        pagecount = len(self.__options) // self.__MAX_OPTIONS
         val = None
         while val is None:
             self.__clear_screen()
@@ -43,12 +41,16 @@ class Menu(object):
             try:
                 itemnumber = int(chr(key)) - 1
                 if itemnumber == 8:
-                    self.__page = (self.__page - 1) % pagecount
+                    self.__page = (self.__page - 1) % self.pagecount
                 elif itemnumber == -1:
-                    self.__page = (self.__page + 1) % pagecount
+                    self.__page = (self.__page + 1) % self.pagecount
                 else:
                     itemnumber += self.__page * self.__MAX_OPTIONS
                     item_key, val = self.__options[itemnumber]
             except (IndexError, ValueError):
                 pass
         return item_key, val
+
+    @property
+    def pagecount(self):
+        return (len(self.__options) - 1) // self.__MAX_OPTIONS + 1

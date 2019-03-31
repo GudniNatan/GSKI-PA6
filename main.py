@@ -30,7 +30,7 @@ def test():
     mem_e = Member("GuðniE", "1234564", "gudni@fakedfgmail.com", 1998)
     results = a.add(mem_a, mem_b, mem_c, mem_d, mem_e)
     msg = "".join(result[0] for result in results)
-    UI().operation_result(msg, callback1, callback2)
+    # UI().operation_result(msg, callback1, callback2)
 
     b = SportRepo()
     b.clear()
@@ -49,12 +49,14 @@ def test():
         print(member)
     print(a.order_by("sports"))
     print(mem_a.age)
-    input()
+    # input()
 
     # a.remove(mem_a)
     for play in c:
         print(play)
     a.save()
+    b.save()
+    c.save()
 
     # my_ui = UI()
     # item = my_ui.choose(a.order_by("phone"))

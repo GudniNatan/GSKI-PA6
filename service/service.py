@@ -1,7 +1,7 @@
 from typing import Callable, Dict
 from my_dataclasses import Member, Sport, Plays
 from repo import MemberRepo, RelationError, RepoFullError, SportRepo
-from repo import PlaysRepo, Repo
+from repo import PlaysRepo, Repo, GroupRepo, GroupMemberRepo
 from ui import Menu, UI
 
 
@@ -13,6 +13,10 @@ class Service(object):
         self.member_repo = MemberRepo()
         self.sport_repo = SportRepo()
         self.plays_repo = PlaysRepo(self.member_repo, self.sport_repo)
+        self.group_repo = GroupRepo(self.sport_repo)
+        self.group_member_repo = GroupMemberRepo(
+            self.group_repo, self.member_repo
+        )
         self.__active = False
 
     def run(self):
@@ -21,9 +25,6 @@ class Service(object):
         while self.__function_stack and self.__active:
             function, arguments = self.__function_stack[-1]
             function(*arguments)
-        self.member_repo.save()
-        self.sport_repo.save()
-        self.plays_repo.save()
 
     def main_menu(self):
         options = {
@@ -79,15 +80,17 @@ class Service(object):
                 results = repo.order_by(order_by)
         elif not any(parameters.values()):
             self.__function_stack.pop()
+            Menu.global_message = "Returned as no parameters were input\n"
             return
         else:
             results = repo.multi_field_search(parameters)
         if results:
-            member, funct = self.ui.search_result_choice(
+            choice, funct = self.ui.search_result_choice(
                 results, next_funct, self.back
             )
-            self.next(funct, member)
+            self.next(funct, choice)
         else:
+            Menu.global_message = "No results found\n"
             self.__function_stack.pop()
 
     def selected_member(self, member: Member, update=False, update_message=""):
@@ -95,10 +98,20 @@ class Service(object):
         options = {
             "Update this member": (self.update_member, member),
             "Delete this member": (self.delete_member, member),
-            "See sports this member is member is registered in":
-            (self.member_relation, member),
+            "See sports this member is registered in":
+            (self.member_sports, member),
+            "See groups this member is registered in":
+            (self.member_groups, member),
+            "Register this member for a sport":
+            (self.register_member, member),
+            "Register this member for a group in registered sport":
+            (self.register_for_group, member),
             "Go to Member menu": (self.member_menu,),
             "Undo" if update else "Back": (self.back,),
+            "Unregister this member from a sport":
+            (self.unregister_member, member),
+            "Unregister this member from a sport group":
+            (self.unregister_group_member, member),
         }
         menu = Menu(update_message + message, options)
         key, val = menu.get_input()
@@ -112,7 +125,7 @@ class Service(object):
         self.next(self.selected_member, new_member, True, result_msg)
 
     def update_member(self, member):
-        updated_member = self.ui.get_member()
+        updated_member = self.ui.update_member(member)
         return self.update_item(member, updated_member,
                                 self.member_repo, self.selected_member)
 
@@ -142,22 +155,45 @@ class Service(object):
             result_msg += msg
         return result_msg
 
-    def member_relation(self, member):
+    def member_sports(self, member):
         """Get all Sports related to this member."""
-        results = self.member_repo.get_related(member, self.sport_repo)
+        return self.search_results(self.plays_repo, self.selected_sport,
+                                   parameters={"member": member})
+
+    def member_groups(self, member):
+        """Get all Groups related to this member."""
+        return self.search_results(
+            self.group_member_repo, self.selected_group, {"member": member}
+        )
+
+    def register_member(self, member):
+        self.__function_stack.pop()
+        sport = self.ui.choose(self.sport_repo.get_all(),
+                               "Choose a sport to register the member for:")
+        result_msg, rev_function, plays = self.plays_repo.add(
+            Plays(member, sport)
+        )[0]
+        self.add_command_frame(rev_function, member)
+        self.next(self.selected_member, member, True, result_msg)
+
+    def register_for_group(self, member):
+        pass
+
+    def unregister_group_member(self, member):
+        pass
 
     def sport_menu(self, message=""):
         options = {
             "See all sports": (self.order_sports,),
             "Search sports": (self.sport_search,),
             "Add new sport": (self.add_sport,),
-            "See sport groups": self.search_results
-            "Go to main menu": self.main_menu,
-            "Back": self.back
+            "See sport groups": (self.search_results, self.group_repo, self.group_repo, None, "sport"),
+            "Go to main menu": (self.main_menu,),
+            "Back": (self.back,)
         }
         menu = Menu(message + "Sport menu", options)
-        val, function = menu.get_input()
-        self.next(function)
+        description, val = menu.get_input()
+        self.next(*val)
 
     def order_sports(self):
         options = {
@@ -169,9 +205,17 @@ class Service(object):
         name, val = menu.get_input()
         self.next(*val)
 
+    def add_sport(self):
+        self.__function_stack.pop()
+        new_sport = self.ui.new_sport()
+        result_msg, rev_function, sport = self.sport_repo.add(new_sport)[0]
+        self.add_command_frame(rev_function, sport)
+        self.next(self.selected_sport, new_sport, True, result_msg)
+
     def sport_search(self):
         parameters = self.ui.search(Sport)
-        return self.search_results(self.sport_repo, parameters)
+        return self.search_results(self.sport_repo, self.selected_sport,
+                                   parameters=parameters)
 
     def all_sports(self, order_by="name"):
         return self.search_results(self.sport_repo, self.selected_sport,
@@ -181,15 +225,35 @@ class Service(object):
         message = self.ui.get_info(sport)
         options = {
             "Update this sport": (self.update_sport, sport),
-            "Delete this member": (self.delete_sport, sport),
-            "See sports this member is member is registered in":
-            (self.sport_relation, sport),
-            "Go to Member menu": (self.sport_menu,),
+            "Delete this sport": (self.delete_sport, sport),
+            "See members registered for this sport":
+            (self.sport_members, sport),
+            "Go to Sport menu": (self.sport_menu,),
             "Undo" if update else "Back": (self.back,),
         }
         menu = Menu(update_message + message, options)
         key, val = menu.get_input()
         self.next(*val)
+
+    def update_sport(self, sport):
+        updated_sport = self.ui.new_sport()
+        return self.update_item(sport, updated_sport,
+                                self.sport_repo, self.selected_sport)
+
+    def delete_sport(self, sport):
+        result_msg = self.delete_repo_item(sport, self.sport_repo)
+        self.next(self.sport_menu, result_msg)
+
+    def sport_members(self, sport):
+        """Get all Members related to this sport."""
+        return self.search_results(self.plays_repo, self.selected_member,
+                                   parameters={"sport": sport})
+
+    def unregister_member(self, member):
+        sport = self.ui.choose(
+            self.plays_repo.search("member", member),
+            "Choose a sport to unregister this member from:"
+        )
 
     def undo(self, *junk):
         methods = self.__command_stack.pop()

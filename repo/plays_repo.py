@@ -1,8 +1,9 @@
-from repo.repo import Repo, RelationError
+from repo.repo import RelationError
+from repo.relational_repo import RelationalRepo
 from my_dataclasses import Plays
 
 
-class PlaysRepo(Repo):
+class PlaysRepo(RelationalRepo):
     def __init__(self, member_repo, sport_repo):
         self.member_repo = member_repo
         self.sport_repo = sport_repo
