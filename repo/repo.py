@@ -27,6 +27,22 @@ class Repo(object):
     - get ordered by any key: O(n)
 
     The Repo expects the dataclasses it holds to be hashable.
+    When a add, update, or delete are used the Repo will return an array with
+    tuples of:
+    - The result message / what was changed
+    - The reverse function, if called has the opposite effect, e.g. add/remove
+    - The instance affected
+    This is done recursively as commands such as delete may affect more than
+    just the object you're deleting, such as all related objects.
+
+    There is an additional feature of a max amount of items the repo can hold.
+    If the repo itself is full, the items can be added to the instance queue,
+    where they will be added to the repo as soon as space is available (such as
+    on a deletion). If a queued item is added to the repo the message, remove
+    function for the item and item will be returned alongside the presumed
+    deleted item message, add function and item. Additionally a function
+    adding the item back onto the front of the front of the queue will be
+    provided.
     """
 
     def __init__(self, dataclass, max_items=-1):
@@ -76,8 +92,8 @@ class Repo(object):
             except KeyError:
                 sorted_dict[field_val] = SortedSet((instance,))
         if args:
-            return message + self.add(*args)
-        return message
+            return [(message, self.remove, instance)] + self.add(*args)
+        return [(message, self.remove, instance)]
 
     def _rem(self, instance, *args):
         for field, sorted_dict in self.dicts.items():
@@ -87,20 +103,21 @@ class Repo(object):
             if not matching_set:
                 sorted_dict.pop(field_val)
         self.size -= 1
-        message = f"Removed {instance} succesfully to the repo\n"
+        message = f"Removed {instance} successfully from the repo\n"
         if args:
             self._rem(*args)
+        return [(message, self.add, instance)]
 
     def remove(self, instance, *args):
         """Remove an instance of the dataclass from the Repo."""
         message = self._rem(instance, *args)
-        return message + self._queue_add()  # add from queue if not empty
+        if self.instance_queue:  # add from queue if not empty
+            message += self.queue_add()
+        return message
 
     def update(self, old_instance, new_instance):
         """Update an old instance of the dataclass with a new one."""
-        self._rem(old_instance)
-        self.add(new_instance)
-        return f"Updated {new_instance}!"
+        return self._rem(old_instance) + self.add(new_instance)
 
     def contains(self, instance):
         """Get if the instance of the dataclass is in this Repo."""
@@ -156,18 +173,18 @@ class Repo(object):
         The instance will be added to the repo itself as soon as space is
         available.
         """
-        self.instance_queue.put(instance)
-        self._queue_add()
+        self.instance_queue.append(instance)
 
-    def _queue_add(self):
-        """If the queue is not empty, and the repo not full, add queue top."""
-        message = ""
-        if self.instance_queue and self.size < self.max_items:
-            instance = self.instance_queue.get()
-            self.add(instance)
-            reponame = type(self).__name__
-            message = f"Added {instance} from the queue to the {reponame}"
-        return message
+    def queue_add(self):
+        """Add from the queue to the repo."""
+        if self.size < self.max_items:
+            raise RepoFullError
+        instance = self.instance_queue.get()
+        reponame = type(self).__name__
+        message = f"Added {instance} from the queue to the {reponame}"
+        return self.add(instance) + [
+            (message, self.instance_queue.append_left, instance)
+        ]
 
     def __iter__(self):
         for ordered_dict in self.dicts.values():
@@ -195,4 +212,3 @@ class Repo(object):
                 other = field
         results = relationRepo.search(self.dataclass.__name__, instance)
         return {result[other] for result in results}
-

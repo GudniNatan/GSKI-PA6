@@ -8,7 +8,7 @@ class Menu(object):
     __MAX_OPTIONS = 8
 
     def __init__(self, message: str, options: Dict[str, Callable] = None):
-        self.__message = message
+        self.__message = self.global_message + message
         if options is None:
             options = list()
         elif type(options) == dict:
@@ -19,8 +19,8 @@ class Menu(object):
     def __str__(self):
         start = self.__page * self.__MAX_OPTIONS
         end = (self.__page + 1) * self.__MAX_OPTIONS
-        pagecount = len(self.__options) // self.__MAX_OPTIONS
-        string = self.global_message + self.__message + "\n"
+        pagecount = (len(self.__options) - 1) // self.__MAX_OPTIONS
+        string = self.__message + "\n"
         string += "\n".join((f"[{i + 1}]: {key}" for i, (key, value)
                              in enumerate(self.__options[start:end])))
         if pagecount > 0:

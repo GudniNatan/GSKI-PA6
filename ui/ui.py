@@ -72,7 +72,10 @@ class UI(object):
         print("Leave a field blank to not search with it")
         parameters = dict()
         for field in fields(dataclass):
-            parameters[field.name] = input(field.name + ": ")
+            try:
+                parameters[field.name] = field.type(input(field.name + ": "))
+            except ValueError:
+                parameters[field.name] = None
         print()
         return parameters
 

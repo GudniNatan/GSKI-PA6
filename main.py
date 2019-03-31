@@ -24,12 +24,13 @@ def test():
     a = MemberRepo()
     a.clear()
     mem_a = Member("GuðniA", "1234564", "gudni@fakemail.com", 1998)
-    mem_b = Member("GuðniB", "1234564", "gudni@fakemail.com", 1998)
-    mem_c = Member("GuðniC", "weasd", "gudni@fakemail.com", 1998)
-    mem_d = Member("GuðniD", "ewr", "gudni@ggdfg.com", 1998)
+    mem_b = Member("GuðniB", "1234564", "gudni@fakemail.com", 1995)
+    mem_c = Member("GuðniC", "weasd", "gudni@fakemail.com", 2014)
+    mem_d = Member("GuðniD", "ewr", "gudni@ggdfg.com", 1938)
     mem_e = Member("GuðniE", "1234564", "gudni@fakedfgmail.com", 1998)
-    result = a.add(mem_a, mem_b, mem_c, mem_d, mem_e)
-    UI().operation_result(result, callback1, callback2)
+    results = a.add(mem_a, mem_b, mem_c, mem_d, mem_e)
+    msg = "".join(result[0] for result in results)
+    UI().operation_result(msg, callback1, callback2)
 
     b = SportRepo()
     b.clear()
@@ -44,6 +45,11 @@ def test():
     plays_c = Plays(mem_a, sport_b)
     plays_d = Plays(mem_e, sport_a)
     c.add(plays_a, plays_b, plays_c, plays_d)
+    for member in a.order_by('sports'):
+        print(member)
+    print(a.order_by("sports"))
+    print(mem_a.age)
+    input()
 
     # a.remove(mem_a)
     for play in c:
