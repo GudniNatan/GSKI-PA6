@@ -308,16 +308,16 @@ class Service(object):
         )
 
     def unregister_member(self, member):
-        results = self.plays_repo.search("member", member)
-        if not results:
-            self.__function_stack.pop()
-            Menu.global_message = "Member is not registered for any sports.\n"
-            return
-        sport = self.ui.choose(
-            results, "Choose a sport to unregister this member from:"
+        self.search_results(
+            self.plays_repo, None,
+            {"member": member}, message="Choose sport to remove:"
         )
-        self.delete_repo_item(Plays(member, sport), self.plays_repo)
-        self.selected_member(member, True, f"Unregistered from {sport.name}\n")
+        if self.__function_stack[-1][0] is None:
+            fun, sport = self.__function_stack.pop()
+            plays = Plays(member, sport[0])
+            result_msg = self.delete_repo_item(
+                plays, self.plays_repo)
+            self.next(self.selected_member, member, True, result_msg)
 
     def add_group(self, sport):
         self.__function_stack.pop()
