@@ -5,7 +5,7 @@
     "python.linting.enabled": true,
     "python.linting.pep8Path": "pycodestyle",
     "python.linting.pydocstyleArgs": [
-        "--ignore=D1,D213"
+        "--ignore=D1,D213, D203"
     ],
     "python.pythonPath": "C:\\Users\\Guðni\\AppData\\Local\\Programs\\Python\\Python37-32\\python.exe",
     "liveshare.allowGuestDebugControl": true

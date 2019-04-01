@@ -7,6 +7,7 @@ class GroupRepo(Repo):
         self.sport_repo = sport_repo
         self.sport_repo.group_repo = self
         self.group_member_repo = group_member_repo
+        self.sport_repo.reliant_repos.append(self)
         return super().__init__(Group)
 
     def add(self, instance, *args):

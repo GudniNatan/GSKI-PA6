@@ -1,7 +1,7 @@
 import typing
 from dataclasses import asdict, fields
 from ui.menu import Menu
-from my_dataclasses import Sport, Member, Plays
+from my_dataclasses import Sport, Member, Plays, Group
 
 
 class UI(object):
@@ -26,7 +26,7 @@ class UI(object):
         print(f"Update member {old_member}:")
         name = input(f"Old name: {old_member.name}\nNew name: ")
         phone = input(f"Old phone: {old_member.phone}\nNew phone: ")
-        email = input(f"Old email: {old_member.name}\nNew email: ")
+        email = input(f"Old email: {old_member.email}\nNew email: ")
         print(f"Old year of birth: {old_member.year_of_birth}")
         year_of_birth = None
         while year_of_birth is None:
@@ -45,6 +45,15 @@ class UI(object):
         print("New sport:", new_sport, "\n")
         return new_sport
 
+    def new_group(self, sport):
+        print("Enter group info:")
+        age_from = input("Age from: ")
+        age_to = input("Age to: ")
+        max_size = input("Max size: ")
+        new_group = Group(sport, age_from, age_to, max_size)
+        print("New group", new_group, "\n")
+        return new_group
+
     def choose(self, items: typing.Iterable, message: str = None):
         """Let user pick from list, returns picked item."""
         options = {str(item): item for item in items}
@@ -62,6 +71,7 @@ class UI(object):
         class_type = type(dataclass_instance)
         string = f"Detailed info for this {class_type.__name__}:\n"
         for key, value in item.items():
+            key = str(key).replace("_", " ").capitalize()
             string += "\n" + key + ": " + str(value)
         return string + "\n"
 
@@ -78,10 +88,20 @@ class UI(object):
         print()
         return parameters
 
-    def search_result_choice(self, results, next, back):
+    def search_result_choice(self, results, next, back, order_field=None,
+                             message=""):
         """Get user choice from search results."""
         options = [("Back", back)] + [(str(item), item) for item in results]
-        menu = Menu("Search results:", options)
+        menu_msg = ""
+        if order_field == "sports":
+            menu_msg = "Ordered based on the first alphabetically ordered "
+            menu_msg += "sport users are registered for. \nUsers not "
+            menu_msg += "registered for any sports are hidden.\n"
+        if message:
+            menu_msg += message
+        else:
+            menu_msg += "Search results:"
+        menu = Menu(menu_msg, options)
         string, item = menu.get_input()
         if string == "Back":
             return None, item
@@ -92,4 +112,3 @@ class UI(object):
                            {"Undo": undo_op, "Continue": continue_op})
         key, operation = result_menu.get_input()
         return operation
-        

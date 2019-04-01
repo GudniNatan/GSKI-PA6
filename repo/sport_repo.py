@@ -11,7 +11,7 @@ class SportRepo(Repo):
 
     def remove(self, instance):
         """Remove a member, and all associations of that member."""
-        for item in self.plays_repo.search("sport", instance):
+        for item in self.plays_repo.full_item_search("sport", instance):
             self.plays_repo.remove(item)
         return super().remove(instance)
 

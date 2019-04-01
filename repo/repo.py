@@ -1,22 +1,18 @@
 import shelve
-from dataclasses import asdict, fields
+from dataclasses import asdict, fields, replace
 from sortedcontainers import SortedDict, SortedSet
-from collections import deque
 from math import inf
 
 
 class RelationError(Exception):
     """Should be raised when unable to link relational attributes."""
-    pass
 
-
-class RepoFullError(Exception):
-    """Should be raised when repo is full."""
     pass
 
 
 class Repo(object):
     """The Repo holds dataclass objects and allows ordering by any key.
+
     This is fast as data is stored via binary search trees created for every
     key. This means that space complexity goes up by n for every key in the
     dataclass, but operation speed should be as follows:
@@ -34,23 +30,14 @@ class Repo(object):
     - The instance affected
     This is done recursively as commands such as delete may affect more than
     just the object you're deleting, such as all related objects.
-
-    There is an additional feature of a max amount of items the repo can hold.
-    If the repo itself is full, the items can be added to the instance queue,
-    where they will be added to the repo as soon as space is available (such as
-    on a deletion). If a queued item is added to the repo the message, remove
-    function for the item and item will be returned alongside the presumed
-    deleted item message, add function and item. Additionally a function
-    adding the item back onto the front of the front of the queue will be
-    provided.
     """
 
     def __init__(self, dataclass, max_items=-1):
         self.max_items = inf if max_items < 0 else max_items
-        self.size = 0
-        self.instance_queue = deque()
         self.dataclass = dataclass
         self.dicts = {field.name: SortedDict() for field in fields(dataclass)}
+        # When items are updated/deleted reliant repos are too
+        self.reliant_repos = list()
         try:
             self.load()
         except KeyError:
@@ -61,8 +48,6 @@ class Repo(object):
             db[self.dataclass.__name__] = {
                 "dicts": self.dicts,
                 "max_items": self.max_items,
-                "size": self.size,
-                "instance_queue": self.instance_queue
             }
 
     def load(self):
@@ -71,20 +56,17 @@ class Repo(object):
                 class_rep = db[self.dataclass.__name__]
                 self.dicts = class_rep["dicts"]
                 self.max_items = class_rep["max_items"]
-                self.size = class_rep["size"]
-                self.instance_queue = class_rep["instance_queue"]
         except (KeyError, TypeError):
             pass
 
     def add(self, instance, *args):
         """Add an instance of the dataclass to the Repo."""
+        name = self.dataclass.__name__
+        print(instance in self)
         if instance not in self:
-            if self.size > self.max_items:
-                raise RepoFullError()
-            self.size += 1
-            message = f"Added {instance} succesfully to the repo\n"
+            message = f"Added {name} succesfully to the repo.\n"
         else:
-            message = f"{instance} already in the repo."
+            message = f"{name} already in the repo.\n"
         for field, sorted_dict in self.dicts.items():
             field_val = instance.__getattribute__(field)
             try:
@@ -102,22 +84,45 @@ class Repo(object):
             matching_set.remove(instance)
             if not matching_set:
                 sorted_dict.pop(field_val)
-        self.size -= 1
-        message = f"Removed {instance} successfully from the repo\n"
+        name = self.dataclass.__name__
+        message = f"Removed {name} successfully from the repo\n"
         if args:
             self._rem(*args)
         return [(message, self.add, instance)]
 
     def remove(self, instance, *args):
         """Remove an instance of the dataclass from the Repo."""
+        undos = list()
+        for repo in self.reliant_repos:
+            field_name = self.dataclass.__name__.lower()
+            results = repo.full_item_search(field_name, instance)
+            for item in list(results):
+                undos.extend(repo.remove(item))
         message = self._rem(instance, *args)
-        if self.instance_queue:  # add from queue if not empty
-            message += self.queue_add()
-        return message
+        return message + undos
 
     def update(self, old_instance, new_instance):
         """Update an old instance of the dataclass with a new one."""
-        return self._rem(old_instance) + self.add(new_instance)
+        undos = self._rem(old_instance)
+        repo_results = list()
+        field_name = self.dataclass.__name__.lower()
+        for repo in self.reliant_repos:
+            results = list(repo.full_item_search(field_name, old_instance))
+            repo_results.append((repo, results))
+            for old_item in results:
+                undos.extend(repo._rem(old_item))
+        re_add_result = self.add(new_instance)
+        for repo, results in repo_results:
+            for old_item in results:
+                new_item = replace(old_item, **{field_name: new_instance})
+                try:
+                    undos.extend(repo.add(new_item))
+                except RelationError as err:
+                    msg, rev, item = undos[-1]
+                    msg += str(err)
+                    undos[-1] = (msg, rev, item)
+        undos.extend(re_add_result)        
+        return undos
 
     def contains(self, instance):
         """Get if the instance of the dataclass is in this Repo."""
@@ -125,6 +130,9 @@ class Repo(object):
 
     def search(self, field, key):
         """Get a SortedSet of all results matching key in given field."""
+        return self.full_item_search(field, key)
+
+    def full_item_search(self, field, key):
         try:
             return self.dicts[field][key]
         except KeyError:
@@ -167,25 +175,6 @@ class Repo(object):
         class_fields = fields(self.dataclass)
         self.dicts = {field.name: SortedDict() for field in class_fields}
 
-    def enqueue(self, instance):
-        """Add an instance to the repo queue.
-
-        The instance will be added to the repo itself as soon as space is
-        available.
-        """
-        self.instance_queue.append(instance)
-
-    def queue_add(self):
-        """Add from the queue to the repo."""
-        if self.size < self.max_items:
-            raise RepoFullError
-        instance = self.instance_queue.get()
-        reponame = type(self).__name__
-        message = f"Added {instance} from the queue to the {reponame}"
-        return self.add(instance) + [
-            (message, self.instance_queue.append_left, instance)
-        ]
-
     def __iter__(self):
         for ordered_dict in self.dicts.values():
             for keyset in ordered_dict.values():
@@ -198,7 +187,7 @@ class Repo(object):
     def __contains__(self, instance):
         for field in asdict(instance):
             field_val = instance.__getattribute__(field)
-            return instance in self.search(field, field_val)
+            return instance in self.full_item_search(field, field_val)
 
     def __del__(self):
         """Save the repo on deletion/quit."""

@@ -9,6 +9,8 @@ class PlaysRepo(RelationalRepo):
         self.sport_repo = sport_repo
         self.member_repo.plays_repo = self
         self.sport_repo.plays_repo = self
+        self.member_repo.reliant_repos.append(self)
+        self.sport_repo.reliant_repos.append(self)
         return super().__init__(Plays)
 
     def add(self, instance, *args):

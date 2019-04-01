@@ -1,6 +1,6 @@
 from typing import Callable, Dict
-from my_dataclasses import Member, Sport, Plays
-from repo import MemberRepo, RelationError, RepoFullError, SportRepo
+from my_dataclasses import Member, Sport, Plays, Group, GroupMember
+from repo import MemberRepo, RelationError, SportRepo
 from repo import PlaysRepo, Repo, GroupRepo, GroupMemberRepo
 from ui import Menu, UI
 
@@ -31,6 +31,7 @@ class Service(object):
             "Members": self.member_menu,
             "Sports": self.sport_menu,
             "Back": self.back,
+            "Save": self.save,
             "Save & Quit": self.quit
         }
         menu = Menu("Main menu", options)
@@ -43,7 +44,7 @@ class Service(object):
             "Search members": self.member_search,
             "Add new member": self.add_member,
             "Go to main menu": self.main_menu,
-            "Back": self.back
+            "Undo" if message else "Back": self.back
         }
         menu = Menu(message + "Member menu", options)
         val, function = menu.get_input()
@@ -51,7 +52,9 @@ class Service(object):
 
     def member_search(self):
         parameters = self.ui.search(Member)
-        return self.search_results(self.member_repo, parameters)
+        return self.search_results(
+            self.member_repo, self.selected_member, parameters
+        )
 
     def order_members(self):
         options = {
@@ -63,7 +66,7 @@ class Service(object):
             "Registered sports": (self.all_members, "sports"),
             "Back": (self.back,)
         }
-        menu = Menu("Order by", options)
+        menu = Menu("Order by:", options)
         name, val = menu.get_input()
         self.next(*val)
 
@@ -72,7 +75,7 @@ class Service(object):
                                    order_by=order_by)
 
     def search_results(self, repo: Repo, next_funct,
-                       parameters=None, order_by=""):
+                       parameters=None, order_by="", message=""):
         if parameters is None:
             if not order_by:
                 results = repo.get_all()
@@ -86,7 +89,7 @@ class Service(object):
             results = repo.multi_field_search(parameters)
         if results:
             choice, funct = self.ui.search_result_choice(
-                results, next_funct, self.back
+                results, next_funct, self.back, order_by, message
             )
             self.next(funct, choice)
         else:
@@ -151,7 +154,7 @@ class Service(object):
         result_msg = ""
         for result in delete_results:
             msg, fun, effected_item = result
-            self.add_command_frame(repo.add, item)
+            self.add_command(fun, effected_item)
             result_msg += msg
         return result_msg
 
@@ -173,23 +176,62 @@ class Service(object):
         result_msg, rev_function, plays = self.plays_repo.add(
             Plays(member, sport)
         )[0]
-        self.add_command_frame(rev_function, member)
+        self.add_command_frame(rev_function, plays)
         self.next(self.selected_member, member, True, result_msg)
 
     def register_for_group(self, member):
-        pass
+        self.__function_stack.pop()
+        available_groups = list()
+        for sport in self.plays_repo.search('member', member):
+            groups = self.group_repo.search('sport', sport)
+            available_groups.extend(groups)
+        if not available_groups:
+            Menu.global_message = "No available groups\n"
+            return
+        choice = self.ui.choose(available_groups, "Available groups:")
+        group_member = GroupMember(member, choice)
+        try:
+            msg, rev, item = self.group_member_repo.add(group_member)[0]
+            self.add_command_frame(rev, item)
+        except RelationError as err:
+            msg = str(err)
+        if msg == "GroupMember already in the repo.\n":
+            msg = "Member already registered for this group.\n"
+        elif msg == "Added GroupMember succesfully to the repo.\n":
+            msg = "Member registered for this group successfully!\n"
+        self.next(self.selected_member, member, True, msg)
 
     def unregister_group_member(self, member):
-        pass
+        self.search_results(
+            self.group_member_repo, None,
+            {"member": member}, message="Choose group to remove:"
+        )
+        if self.__function_stack[-1][0] is None:
+            fun, group = self.__function_stack.pop()
+            group_mem = GroupMember(member, group[0])
+            result_msg = self.delete_repo_item(
+                group_mem, self.group_member_repo)
+            self.next(self.selected_member, member, True, result_msg)
+
+    def selected_group(self, group):
+        info = self.ui.get_info(group)
+        options = {
+            "See registered members": self.group_members,
+            "Back": self.back
+        }
+        menu = Menu(info, options)
+        desc, function = menu.get_input()
+        return self.next(function, group)
 
     def sport_menu(self, message=""):
         options = {
             "See all sports": (self.order_sports,),
             "Search sports": (self.sport_search,),
             "Add new sport": (self.add_sport,),
-            "See sport groups": (self.search_results, self.group_repo, self.group_repo, None, "sport"),
+            "See sport groups": (self.search_results, self.group_repo,
+                                 self.group_repo, None, "sport"),
             "Go to main menu": (self.main_menu,),
-            "Back": (self.back,)
+            "Undo" if message else "Back": (self.back,)
         }
         menu = Menu(message + "Sport menu", options)
         description, val = menu.get_input()
@@ -228,6 +270,12 @@ class Service(object):
             "Delete this sport": (self.delete_sport, sport),
             "See members registered for this sport":
             (self.sport_members, sport),
+            "See groups for this sport":
+            (self.sport_groups, sport),
+            "Create group for this sport":
+            (self.add_group, sport),
+            "Remove group for this sport":
+            (self.delete_group, sport),
             "Go to Sport menu": (self.sport_menu,),
             "Undo" if update else "Back": (self.back,),
         }
@@ -249,18 +297,52 @@ class Service(object):
         return self.search_results(self.plays_repo, self.selected_member,
                                    parameters={"sport": sport})
 
-    def unregister_member(self, member):
-        sport = self.ui.choose(
-            self.plays_repo.search("member", member),
-            "Choose a sport to unregister this member from:"
+    def sport_groups(self, sport):
+        return self.search_results(self.group_repo, self.selected_group,
+                                   parameters={"sport": sport})
+
+    def group_members(self, group):
+        return self.search_results(
+            self.group_member_repo, self.selected_member,
+            parameters={"group": group}
         )
+
+    def unregister_member(self, member):
+        results = self.plays_repo.search("member", member)
+        if not results:
+            self.__function_stack.pop()
+            Menu.global_message = "Member is not registered for any sports.\n"
+            return
+        sport = self.ui.choose(
+            results, "Choose a sport to unregister this member from:"
+        )
+        self.delete_repo_item(Plays(member, sport), self.plays_repo)
+        self.selected_member(member, True, f"Unregistered from {sport.name}\n")
+
+    def add_group(self, sport):
+        self.__function_stack.pop()
+        group = self.ui.new_group(sport)
+        result_msg, rev_function, group = self.group_repo.add(group)[0]
+        self.add_command_frame(rev_function, group)
+        self.next(self.selected_sport, sport, True, result_msg)
+
+    def delete_group(self, sport):
+        self.search_results(
+            self.group_repo, None, parameters={"sport": sport},
+            message="Choose a group to remove:"
+        )
+        if self.__function_stack[-1][0] is None:
+            fun, group = self.__function_stack.pop()
+            result_msg = self.delete_repo_item(group[0], self.group_repo)
+            self.next(self.selected_sport, sport, True, result_msg)
 
     def undo(self, *junk):
         methods = self.__command_stack.pop()
-        for undo_method, arguments in reversed(methods):
-            message = undo_method(*arguments)
-            if message:
-                Menu.global_message += str(message)
+        for undo_method, arguments in methods:
+            messages = undo_method(*arguments)
+            for message in messages:
+                msg, rev, item = message
+                Menu.global_message += str(msg)
         self.__function_stack.pop()
 
     def back(self, *junk):
@@ -277,7 +359,6 @@ class Service(object):
     def next(self, function: Callable, *args):
         """Call this after every function, pointing to the next one."""
         Menu.global_message = ""
-        # function(*args)
         self.__function_stack.append((function, args))
 
     def add_command_frame(self, function: Callable = None, *args):
@@ -288,4 +369,15 @@ class Service(object):
         self.__function_stack.append((self.undo, []))
 
     def quit(self):
+        self.save()
         self.__active = False
+
+    def save(self):
+        self.member_repo.save()
+        self.sport_repo.save()
+        self.plays_repo.save()
+        self.group_repo.save()
+        self.group_member_repo.save()
+        if self.__function_stack:
+            self.__function_stack.pop()
+        Menu.global_message = "Saved successfully!\n"

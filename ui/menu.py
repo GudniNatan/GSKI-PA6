@@ -30,6 +30,7 @@ class Menu(object):
         return string
 
     def __clear_screen(self):
+        print("\n")
         os.system("cls" if os.name == "nt" else "clear")
 
     def get_input(self) -> Callable:
