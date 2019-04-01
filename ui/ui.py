@@ -12,12 +12,7 @@ class UI(object):
         name = input("Name: ")
         phone = input("Phone: ")
         email = input("Email: ")
-        year_of_birth = None
-        while year_of_birth is None:
-            try:
-                year_of_birth = int(input("Year of birth: "))
-            except ValueError:
-                print("Year of birth should be a number.")
+        year_of_birth = self.get_int("Year of birth")
         new_member = Member(name, phone, email, year_of_birth)
         print("New member:", new_member)
         return new_member
@@ -28,12 +23,7 @@ class UI(object):
         phone = input(f"Old phone: {old_member.phone}\nNew phone: ")
         email = input(f"Old email: {old_member.email}\nNew email: ")
         print(f"Old year of birth: {old_member.year_of_birth}")
-        year_of_birth = None
-        while year_of_birth is None:
-            try:
-                year_of_birth = int(input("New year of birth: "))
-            except ValueError:
-                print("Year of birth should be a number.")
+        year_of_birth = self.get_int("New year of birth")
         new_member = Member(name, phone, email, year_of_birth)
         print("Updated member:", new_member, "\n")
         return new_member
@@ -45,11 +35,20 @@ class UI(object):
         print("New sport:", new_sport, "\n")
         return new_sport
 
+    def get_int(self, fieldname):
+        field = None
+        while field is None:
+            try:
+                field = int(input(fieldname + ": "))
+            except ValueError:
+                print(fieldname, "should be a whole number.")
+        return field
+
     def new_group(self, sport):
         print("Enter group info:")
-        age_from = input("Age from: ")
-        age_to = input("Age to: ")
-        max_size = input("Max size: ")
+        age_from = self.get_int("Age from")
+        age_to = self.get_int("Age to")
+        max_size = self.get_int("Max size")
         new_group = Group(sport, age_from, age_to, max_size)
         print("New group", new_group, "\n")
         return new_group

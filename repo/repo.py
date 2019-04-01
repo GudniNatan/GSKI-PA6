@@ -62,7 +62,6 @@ class Repo(object):
     def add(self, instance, *args):
         """Add an instance of the dataclass to the Repo."""
         name = self.dataclass.__name__
-        print(instance in self)
         if instance not in self:
             message = f"Added {name} succesfully to the repo.\n"
         else:
